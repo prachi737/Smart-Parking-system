@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Smart Parking{% endblock %}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231556A8'/%3E%3Crect x='2.5' y='2.5' width='27' height='27' rx='4' fill='none' stroke='white' stroke-width='1.6'/%3E%3Ctext x='16' y='24' font-size='21' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* ---------- Tokens ---------- */
+:root{
+  --concrete:#E9EBEC; --panel:#FFFFFF; --line:#D5D9DC; --line-strong:#B8BFC4;
+  --ink:#16191D; --ink-2:#444C55; --ink-3:#5F6873;
+  --asphalt:#2A2E33; --paint:#F1F1EC; --asphalt-mute:#9AA3AD;
+  --blue:#1556A8; --blue-dk:#0F4590; --blue-on-dark:#8DBBFF;
+  --free:#1E7B46; --free-on-dark:#5BD08E;
+  --occ:#B3261E;  --occ-on-dark:#FF8577;
+  --res:#8A5E00;  --res-paint:#F2B705;
+  --font:"Barlow","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  --font-num:"Barlow Semi Condensed","Barlow","Segoe UI",system-ui,Arial,sans-serif;
+}
+
+/* ---------- Base ---------- */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--concrete);color:var(--ink);font:400 15px/1.5 var(--font)}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* ---------- Top bar ---------- */
+.bar{background:var(--ink);color:#fff}
+.bar-in{max-width:1240px;margin:0 auto;padding:0 28px;min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font:600 17px/1 var(--font);padding:12px 0}
+.sign{display:grid;place-items:center;width:30px;height:30px;border-radius:6px;background:var(--blue);color:#fff;font:700 20px/1 var(--font-num);box-shadow:inset 0 0 0 2px rgba(255,255,255,.92)}
+.nav{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.nav a{color:#C9CFD6;text-decoration:none;padding:7px 12px;border-radius:6px;font-weight:500}
+.nav a:hover{color:#fff;background:rgba(255,255,255,.09)}
+.nav a[aria-current="page"]{color:#fff;background:rgba(255,255,255,.15)}
+.nav a:focus-visible{outline-color:#fff}
+.who{display:flex;align-items:center;gap:8px;color:#fff;margin:0 8px 0 14px;padding-left:18px;border-left:1px solid #3B434C;font-weight:500}
+.role{font-size:12px;font-weight:500;color:#C9CFD6;border:1px solid #4A525B;border-radius:4px;padding:1px 7px}
+
+/* ---------- Page ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:26px 28px 56px}
+.pagehead{display:flex;justify-content:space-between;align-items:baseline;gap:8px 20px;flex-wrap:wrap;margin-bottom:18px}
+.pagehead h1{font:700 28px/1.1 var(--font-num);letter-spacing:.005em}
+.pagehead p{color:var(--ink-3);font-size:14px}
+.flash{background:#FFF5D6;border:1px solid #EBCB63;border-left:4px solid #E0A800;border-radius:6px;padding:10px 14px;margin-bottom:18px;font-size:14px}
+
+/* ---------- Panels ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.panel-h{padding:15px 20px 0}
+.panel-h h2{font:600 16px/1.3 var(--font)}
+.panel-h p{color:var(--ink-3);font-size:13px;margin-top:1px}
+.panel-b{padding:14px 20px 20px}
+.mut{color:var(--ink-3);font-size:13px}
+
+/* ---------- Status strip ---------- */
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:20px}
+.stat{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;padding:16px 22px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat-l{display:flex;align-items:center;gap:9px;color:var(--ink-2);font-weight:500}
+.stat-n{font:700 34px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;flex:none;align-self:center}
+.sw-all{border:2px solid var(--line-strong)}
+.sw-free{border:2px solid var(--free);background:rgba(30,123,70,.14)}
+.sw-occ{background:#7C858E;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 7px #7C858E}
+.sw-res{border:2px solid #C99A00;background:repeating-linear-gradient(135deg,#F2B705 0 3px,#fff 3px 6px)}
+
+/* ---------- Forms & buttons ---------- */
+label{display:block;font-size:13px;font-weight:600;color:var(--ink-2)}
+input,select{display:block;width:100%;height:42px;margin-top:5px;padding:0 12px;font:400 15px var(--font);color:var(--ink);background:#fff;border:1px solid var(--line-strong);border-radius:6px}
+input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(21,86,168,.2)}
+.btn{display:block;width:100%;height:44px;margin-top:14px;padding:0 16px;font:600 15px var(--font);color:#fff;background:var(--blue);border:0;border-radius:6px;cursor:pointer;transition:background .12s}
+.btn:hover{background:var(--blue-dk)}
+.btn:active{background:#0B3A7A}
+.btn-danger{background:var(--occ)}
+.btn-danger:hover{background:#951E17}
+.btn-danger:active{background:#7C1812}
+
+/* ---------- Tables ---------- */
+.tbl{overflow-x:auto;margin:0 -8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{padding:8px 10px;text-align:left;font-size:13px;font-weight:600;color:var(--ink-3);white-space:nowrap;border-bottom:1px solid var(--line-strong)}
+td{padding:9px 10px;vertical-align:top;border-bottom:1px solid var(--line)}
+tbody tr:last-child td{border-bottom:0}
+td.num{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-nums}
+td.empty{color:var(--ink-3);padding:18px 10px}
+.kind{font-weight:600;display:inline-block;text-transform:lowercase;color:#8F1D17}
+.kind::first-letter{text-transform:uppercase}
+.kind.SAFETY{color:#7A5200}
+
+@media (max-width:760px){
+  .wrap{padding:20px 16px 40px}
+  .bar-in{padding:0 16px}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat{padding:14px 16px}
+  .stat:nth-child(odd){border-left:0}
+  .stat:nth-child(n+3){border-top:1px solid var(--line)}
+  .nav{gap:0}
+  .nav a{padding:7px 9px}
+  .who{margin:0 2px 0 4px;padding-left:10px;gap:6px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+{% block nav %}
+<header class="bar"><div class="bar-in">
+  <a class="brand" href="/dashboard"><span class="sign" aria-hidden="true">P</span>Secure Smart Parking</a>
+  {% if me %}
+  <nav class="nav" aria-label="Main">
+    <a href="/dashboard" {% if request.path=='/dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
+    {% if role=='admin' %}<a href="/admin" {% if request.path=='/admin' %}aria-current="page"{% endif %}>Admin</a>{% endif %}
+    <span class="who">{{me}} <span class="role">{{role}}</span></span>
+    <a href="/logout">Logout</a>
+  </nav>
+  {% endif %}
+</div></header>
+{% endblock %}
+{% block main %}
+<main class="wrap">
+{% for m in get_flashed_messages() %}<div class="flash" role="status">{{m}}</div>{% endfor %}
+{% block body %}{% endblock %}
+</main>
+{% endblock %}
+</body>
+</html>

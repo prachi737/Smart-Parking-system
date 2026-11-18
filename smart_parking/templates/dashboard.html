@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Smart Parking{% endblock %}
+{% block head %}
+<style>
+.cols{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+/* ----- Bay map: the lot, drawn like the real thing ----- */
+.lot{background:var(--asphalt);border-radius:6px;padding:22px 24px 24px;max-width:680px;margin:0 auto}
+.bays{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+.bay{--car:#999;position:relative;display:block;margin:0;padding:0;border:0;background:transparent;color:var(--paint);font:inherit;aspect-ratio:2/3;min-width:0;cursor:default}
+.bay::before{content:"";position:absolute;inset:0;border:0 solid var(--paint);pointer-events:none}
+.bay.top::before{border-width:3px 0 0 3px}
+.bay.top.last::before{border-width:3px 3px 0 3px}
+.bay.bot::before{border-width:0 0 3px 3px}
+.bay.bot.last::before{border-width:0 3px 3px 3px}
+
+.tag{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;line-height:1.1;pointer-events:none}
+.top .tag{bottom:8px}
+.bot .tag{top:8px}
+.tag b{font:700 19px/1 var(--font-num);letter-spacing:.02em}
+.tag small{margin-top:3px;font-size:12px;font-weight:500}
+.free .tag{color:var(--free-on-dark)}
+.occupied .tag{color:var(--occ-on-dark)}
+.reserved .tag{color:var(--res-paint)}
+
+.bay.free{cursor:pointer;background:rgba(91,208,142,.10);transition:background .12s}
+.bay.free:hover{background:rgba(91,208,142,.24)}
+.bay.reserved{background:repeating-linear-gradient(135deg,rgba(242,183,5,.30) 0 6px,transparent 6px 14px)}
+.bay.picked{background:rgba(141,187,255,.22);outline:3px solid var(--blue-on-dark);outline-offset:-8px}
+.bay:focus-visible{outline:3px solid #fff;outline-offset:-8px}
+
+.car{display:none;position:absolute;left:17%;right:17%;border-radius:11px;background:var(--car);box-shadow:0 3px 0 rgba(0,0,0,.3)}
+.car::before{content:"";position:absolute;left:13%;right:13%;top:26%;height:21%;background:rgba(14,16,19,.72);border-radius:6px 6px 3px 3px}
+.car::after{content:"";position:absolute;left:15%;right:15%;bottom:12%;height:13%;background:rgba(14,16,19,.6);border-radius:3px}
+.occupied .car{display:block}
+.top .car{top:8%;bottom:33%}
+.bot .car{top:33%;bottom:8%;transform:scaleY(-1)}
+
+.lane{grid-column:1/-1;position:relative;height:66px;display:flex;align-items:center;justify-content:center}
+.lane::before{content:"";position:absolute;left:0;right:0;top:50%;height:3px;margin-top:-1px;background:repeating-linear-gradient(90deg,rgba(241,241,236,.5) 0 24px,transparent 24px 42px)}
+.lane span{position:relative;padding:0 12px;background:var(--asphalt);color:var(--asphalt-mute);font-size:12px;font-weight:500}
+.lot-empty{grid-column:1/-1;padding:40px 0;text-align:center;color:var(--asphalt-mute);font-size:14px}
+
+/* ----- Booking ----- */
+.fields{display:grid;grid-template-columns:1fr 110px;gap:12px}
+.msg{margin-top:10px;font-size:14px;font-weight:500}
+.msg:empty{margin:0}
+.msg.ok{color:var(--free)} .msg.err{color:var(--occ)}
+.mine{margin-top:6px}
+.mine h3{font-size:13px;font-weight:600;color:var(--ink-2);margin:10px 0 8px}
+.mine ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.mine li{display:flex;align-items:baseline;gap:8px;padding:6px 12px;border:1px solid var(--line-strong);border-radius:6px;font-size:14px;background:#F6F7F8}
+.mine li b{font:700 16px/1 var(--font-num)}
+
+/* ----- Camera ----- */
+.cam{position:relative;aspect-ratio:640/370;background:#1D2024;border-radius:6px;overflow:hidden}
+.cam img{display:block;width:100%;height:100%;object-fit:cover}
+.live{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:6px;padding:3px 9px 3px 8px;border-radius:4px;background:rgba(16,18,21,.78);color:#fff;font-size:12px;font-weight:600}
+.live::before{content:"";width:7px;height:7px;border-radius:50%;background:#FF5A4D}
+
+/* ----- Sensors ----- */
+.zones{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.zone{padding:0 18px}
+.zone:first-child{padding-left:0}
+.zone:last-child{padding-right:0;border-left:1px solid var(--line)}
+.zone h3{font-size:14px;font-weight:600;margin-bottom:6px}
+.zone div{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font-size:14px}
+.zone dt{color:var(--ink-3)}
+.zone dd{margin:0;font:700 18px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.zone dd span{margin-left:3px;font:400 12px var(--font);color:var(--ink-3)}
+.zone dl{margin:0}
+.chartbox{position:relative;height:210px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+
+/* ----- Alerts ----- */
+.al{margin-bottom:8px;padding:9px 12px 10px;border-left:4px solid var(--occ);border-radius:0 6px 6px 0;background:#FCEEEC;font-size:14px}
+.al.SAFETY{border-color:#E0A800;background:#FFF5D6}
+.al-top{display:flex;justify-content:space-between;gap:12px}
+.al-kind{font-size:13px;font-weight:600;text-transform:lowercase;display:inline-block;color:#8F1D17}
+.al-kind::first-letter{text-transform:uppercase}
+.al.SAFETY .al-kind{color:#7A5200}
+.al-top time{color:var(--ink-3);font-size:13px;font-variant-numeric:tabular-nums}
+.al-msg{margin-top:1px}
+.al:last-child{margin-bottom:0}
+
+@media (max-width:960px){
+  .cols{grid-template-columns:minmax(0,1fr)}
+  .col{display:contents}
+  #p-map{order:1} #p-book{order:2} #p-cam{order:3} #p-sens{order:4} #p-alerts{order:5}
+}
+@media (max-width:640px){
+  .lot{padding:14px 12px 16px}
+  .tag b{font-size:15px}
+  .tag small{display:none}
+  .lane{height:48px}
+  .zones{grid-template-columns:1fr}
+  .zone,.zone:last-child{padding:0;border-left:0}
+  .zone:last-child{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+}
+</style>
+{% endblock %}
+{% block body %}
+<div class="pagehead"><h1>Live availability</h1><p>Refreshes every 2 seconds</p></div>
+
+<div class="strip">
+  <div class="stat"><span class="stat-l"><i class="sw sw-all"></i>Total slots</span><b class="stat-n" id="t">-</b></div>
+  <div class="stat"><span class="stat-l"><i class="sw sw-free"></i>Free</span><b class="stat-n" id="f">-</b></div>
+  <div class="stat"><span class="stat-l"><i class="sw sw-occ"></i>Occupied</span><b class="stat-n" id="o">-</b></div>
+  <div class="stat"><span class="stat-l"><i class="sw sw-res"></i>Reserved</span><b class="stat-n" id="r">-</b></div>
+</div>
+
+<div class="cols">
+  <div class="col">
+    <section class="panel" id="p-map">
+      <div class="panel-h"><h2>Slot map</h2><p>Click a free slot to book it</p></div>
+      <div class="panel-b"><div class="lot"><div class="bays" id="grid"><div class="lot-empty">Waiting for the camera...</div></div></div></div>
+    </section>
+
+    <section class="panel" id="p-cam">
+      <div class="panel-h"><h2>Live camera</h2><p>AI slot detection (OpenCV)</p></div>
+      <div class="panel-b"><div class="cam"><img src="/video" alt="Overhead camera feed with detected slots outlined"><span class="live">Live</span></div></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="panel" id="p-book">
+      <div class="panel-h"><h2>Book a slot</h2><p>Rs 20 per hour. Part hours are rounded up.</p></div>
+      <div class="panel-b">
+        <div class="fields">
+          <label>Slot<select id="slot"></select></label>
+          <label>Hours<input id="hrs" type="number" min="1" max="12" value="2"></label>
+        </div>
+        <button class="btn" type="button" onclick="book()">Book now (Rs 20 / hour)</button>
+        <div id="msg" class="msg" role="status" aria-live="polite"></div>
+        <div id="mine" class="mine"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-sens">
+      <div class="panel-h"><h2>IoT sensors</h2><p>Zone-A and Zone-B</p></div>
+      <div class="panel-b">
+        <div id="sens" class="zones"><span class="mut">Waiting for sensor data...</span></div>
+        <div class="chartbox"><canvas id="ch" aria-label="Temperature and gas readings over the last 20 messages" role="img"></canvas></div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-alerts">
+      <div class="panel-h"><h2>Security &amp; safety alerts</h2><p>Latest 6</p></div>
+      <div class="panel-b"><div id="al"><span class="mut">No alerts</span></div></div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const CSRF="{{csrf}}";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CARS=['#C9CDD1','#8B939B','#E6E3DA','#47657F','#7D4444','#56705F'];   /* car body colours, by slot id */
+
+/* Chart (same data as before; styling only) */
+let chart=null;
+if(window.Chart){
+  Chart.defaults.font.family='Barlow,"Segoe UI",system-ui,sans-serif';
+  Chart.defaults.font.size=12;
+  Chart.defaults.color='#5F6873';
+  chart=new Chart($('ch'),{type:'line',
+    data:{labels:[],datasets:[
+      {label:'Temperature (\u00B0C)',data:[],borderColor:'#1556A8',backgroundColor:'#1556A8',borderWidth:2,pointRadius:0,tension:.3},
+      {label:'Gas (ppm \u00F7 10)',data:[],borderColor:'#C58A00',backgroundColor:'#C58A00',borderWidth:2,pointRadius:0,tension:.3}]},
+    options:{animation:false,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{align:'start',labels:{usePointStyle:true,pointStyle:'rect',boxWidth:10,boxHeight:10}}},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:5,maxRotation:0}},y:{border:{display:false},grid:{color:'#E3E6E8'}}}}});
+}
+
+/* Slot map */
+function buildBays(slots){
+  const g=$('grid');let h='';
+  slots.forEach((s,i)=>{
+    if(i===6)h+='<div class="lane"><span>Drive lane</span></div>';
+    const row=i<6?'top':'bot',last=(i%6===5)?' last':'';
+    h+=`<button type="button" class="bay ${row}${last}" data-id="${s.id}" style="--car:${CARS[s.id%6]}"><i class="car"></i><span class="tag"><b>P${s.id}</b><small></small></span></button>`;
+  });
+  g.innerHTML=h;g.dataset.sig=slots.map(s=>s.id).join();
+}
+function paintBays(slots){
+  const g=$('grid');
+  if(g.dataset.sig!==slots.map(s=>s.id).join())buildBays(slots);
+  slots.forEach(s=>{
+    const b=g.querySelector(`[data-id="${s.id}"]`);if(!b)return;
+    b.classList.remove('free','occupied','reserved');b.classList.add(s.state);
+    b.disabled=s.state!=='free';
+    b.setAttribute('aria-label',`Slot P${s.id}, ${s.state}`);
+    b.querySelector('small').textContent=s.state;
+  });
+  syncPicked();
+}
+function syncPicked(){
+  const v=$('slot').value;
+  $('grid').querySelectorAll('.bay').forEach(b=>b.classList.toggle('picked',b.dataset.id===v&&b.classList.contains('free')));
+}
+function pick(i){$('slot').value=i;syncPicked()}
+$('grid').addEventListener('click',e=>{const b=e.target.closest('.bay.free');if(b)pick(b.dataset.id)});
+$('slot').addEventListener('change',syncPicked);
+
+/* Polling */
+async function tick(){
+  const d=await(await fetch('/api/status')).json();
+  const c=s=>d.slots.filter(x=>x.state==s).length;
+  $('t').textContent=d.slots.length;$('f').textContent=c('free');$('o').textContent=c('occupied');$('r').textContent=c('reserved');
+
+  /* dropdown: rebuild only when the set of free slots changes, so an open list isn't reset */
+  const sel=$('slot'),free=d.slots.filter(s=>s.state=='free').map(s=>String(s.id)),sig=free.join();
+  if(sel.dataset.sig!==sig){
+    const cur=sel.value;
+    sel.innerHTML=free.map(i=>`<option value="${i}">P${i}</option>`).join('');
+    sel.dataset.sig=sig;if(free.includes(cur))sel.value=cur;
+  }
+  paintBays(d.slots);
+
+  const z=Object.entries(d.sensors);
+  $('sens').innerHTML=z.length?z.map(([n,v])=>`<div class="zone"><h3>${esc(n)}</h3><dl>
+    <div><dt>Temperature</dt><dd>${esc(v.temp)}<span>\u00B0C</span></dd></div>
+    <div><dt>Humidity</dt><dd>${esc(v.hum)}<span>% RH</span></dd></div>
+    <div><dt>Gas</dt><dd>${esc(v.gas)}<span>ppm</span></dd></div></dl></div>`).join(''):'<span class="mut">Waiting for sensor data...</span>';
+
+  $('al').innerHTML=d.alerts.map(a=>`<div class="al ${esc(a.kind)}"><div class="al-top"><span class="al-kind">${esc(a.kind)}</span><time>${esc(a.ts)}</time></div><div class="al-msg">${esc(a.msg)}</div></div>`).join('')||'<span class="mut">No alerts</span>';
+
+  $('mine').innerHTML=d.mine.length?'<h3>Your active bookings</h3><ul>'+d.mine.map(m=>`<li><b>P${esc(m.slot)}</b>Rs ${esc(m.fee)}</li>`).join('')+'</ul>':'';
+
+  if(chart){
+    chart.data.labels=d.chart.map(x=>x.ts);
+    chart.data.datasets[0].data=d.chart.map(x=>x.temp);
+    chart.data.datasets[1].data=d.chart.map(x=>x.gas/10);
+    chart.update();
+  }
+}
+async function book(){
+  const r=await fetch('/book',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF':CSRF},body:JSON.stringify({slot:$('slot').value,hours:$('hrs').value})});
+  const j=await r.json();const m=$('msg');m.textContent=j.msg;m.className='msg '+(j.ok?'ok':'err');tick();
+}
+setInterval(tick,2000);tick();
+</script>
+{% endblock %}
